@@ -111,5 +111,19 @@ async def spotify(ctx, *, query: str):
         print(f"Error during Spotify search: {e}")
         await ctx.send("There was an error processing your request.")
 
+@bot.command()
+async def stop(ctx):
+    """Stops playback and disconnects from the voice channel."""
+    voice_client = ctx.voice_client
+
+    if voice_client is None:
+        await ctx.send("I'm not connected to a voice channel.")
+
+    if voice_client.is_playing():
+        voice_client.stop()
+
+    await voice_client.disconnect()
+    await ctx.send("Playback stopped and disconnected.")
+
 # Run the bot
 bot.run(TOKEN)
