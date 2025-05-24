@@ -28,6 +28,23 @@ spotify_client = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
 async def on_ready():
     print(f"Logged in as {bot.user.name}")
 
+@bot.event
+async def on_voice_state_update(member, before, after):
+    voice_client = discord.utils.get(bot.voice_clients, guild=member.guild)
+
+    # Ignore if bot is not connected
+    if voice_client is None or voice_client.channel is None:
+        return
+    
+    # Ignore if the voice state change isn't in the same channel as the bot
+    if before.channel == voice_client.channel or after.channel == voice_client.channel:
+        channel = voice_client.channel
+        non_bot_members = [m for m in channel.members if not m.bot]
+
+        if len(non_bot_members) == 0:
+            await voice_client.disconnect()
+            print(f"Auto-disconnected from {channel.name} (empty)")
+
 @bot.command()
 async def ping(ctx):
     await ctx.send("pong!")
