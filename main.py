@@ -1,6 +1,8 @@
+import asyncio
 import discord
 import os
 import spotipy
+import yt_dlp
 
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -29,6 +31,63 @@ async def on_ready():
 @bot.command()
 async def ping(ctx):
     await ctx.send("pong!")
+
+@bot.command()
+async def play(ctx, *, query: str):
+    """Plays a song from Spotify or text by streaming from  YouTube."""
+    voice = ctx.author.voice
+    if not voice or not voice.channel:
+        await ctx.send("You must be in a voice channel.")
+        return
+    
+    # Convert Spotify URL to search query
+    if "open.spotify.com" in query:
+        try:
+            track_id = query.split("/")[-1].split("?")[0]
+            track = spotify_client.track(track_id)
+            query = f"{track['name']} {track['artists'][0]['name']}"
+        except Exception:
+            await ctx.send("Could not parse Spotify track.")
+            return
+    
+    # Connect to voice if not already connected
+    if ctx.voice_client is None:
+        vc = await voice.channel.connect()
+    else:
+        vc = ctx.voice_client
+
+    await ctx.send(f"Searching for `{query}`")
+
+    ytdlp_opts = {
+        'format': 'bestaudio/best',
+        'noplaylist': True,
+        'quiet': True,
+        'default_search': 'ytsearch1',
+    }
+
+    with yt_dlp.YoutubeDL(ytdlp_opts) as ydl:
+        try:
+            info = ydl.extract_info(query, download=False)
+            if 'entries' in info:
+                info = info['entries'][0] # First result from ytsearch
+            url = info['url']
+            title = info['title']
+        except Exception as e:
+            print(f"yt-dlp error: {e}")
+            await ctx.send("Failed to get audio from YouTube.")
+            return
+        
+    await ctx.send(f"Now playing: **{title}**")
+    print(f"Streaming from: {url}")
+
+    def after_play(error):
+        if error:
+            print(f"Playback error: {error}")
+        else:
+            print("Playback finished successfully.")
+
+    vc.stop()
+    vc.play(discord.FFmpegPCMAudio(url), after=after_play)
 
 @bot.command()
 async def spotify(ctx, *, query: str):
